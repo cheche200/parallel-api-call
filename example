@@ -1,0 +1,88 @@
+Certainly! Below is an example demonstrating the use of @Async and CompletableFuture in a Spring Boot application to make paginated API calls. This example assumes that you're fetching data from an external API that supports pagination.
+
+First, ensure that you have enabled asynchronous processing in your Spring configuration. You can do this by adding @EnableAsync to one of your configuration classes:
+
+java
+Copy code
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
+
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+    // Additional configurations if necessary
+}
+Then, create a service class to handle the API calls. In this example, let's assume you're fetching data page by page and each page is processed asynchronously:
+
+java
+Copy code
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.CompletableFuture;
+
+@Service
+public class ApiService {
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Async
+    public CompletableFuture<ApiResponse> fetchPage(String url, int pageNumber) {
+        // Construct the URL with pagination query parameters
+        String paginatedUrl = url + "?page=" + pageNumber;
+        ApiResponse response = restTemplate.getForObject(paginatedUrl, ApiResponse.class);
+
+        // Simulate processing the response
+        processResponse(response);
+
+        return CompletableFuture.completedFuture(response);
+    }
+
+    private void processResponse(ApiResponse response) {
+        // Process the data (e.g., store in cache or database)
+    }
+}
+In the above code, ApiResponse is a placeholder for your actual response class. Make sure to replace it with the actual class that matches the structure of the data you're fetching.
+
+Next, create a method to initiate the asynchronous fetching of pages. This method can be part of another service or a controller:
+
+java
+Copy code
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
+@Service
+public class DataFetchService {
+
+    @Autowired
+    private ApiService apiService;
+
+    public void fetchAllPagesAsync(String baseUrl, int totalPages) {
+        List<CompletableFuture<ApiResponse>> futures = new ArrayList<>();
+
+        for (int i = 1; i <= totalPages; i++) {
+            CompletableFuture<ApiResponse> pageFuture = apiService.fetchPage(baseUrl, i);
+            futures.add(pageFuture);
+        }
+
+        // Combine all futures and wait for them to complete
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        // Optionally, you can process the combined results
+        List<ApiResponse> allResponses = futures.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList());
+
+        // Process allResponses if needed
+    }
+}
+This fetchAllPagesAsync method asynchronously fetches all pages and waits for all of them to complete. You can adjust the totalPages parameter based on the API's pagination details.
+
+Remember to replace ApiResponse and baseUrl with the actual response type and base URL of the API you are working with. Also, error handling and logging should be added as needed to handle any exceptions or issues that might arise during the API calls and processing.
+
+
+
+
